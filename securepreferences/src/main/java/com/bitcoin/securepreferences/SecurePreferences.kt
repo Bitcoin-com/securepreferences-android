@@ -56,6 +56,10 @@ class SecurePreferences(context: Context, private val namespace: String) {
             return this
         }
 
+        fun remove(key: String) {
+            editor.remove(key)
+        }
+
         fun commit(): Boolean {
             return editor.commit()
         }
