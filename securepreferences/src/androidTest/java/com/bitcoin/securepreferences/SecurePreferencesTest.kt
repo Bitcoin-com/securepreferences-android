@@ -42,6 +42,27 @@ class SecurePreferencesTest {
     }
 
     @Test
+    fun givenStringWasSaved_whenStringIsRemovedThenLoaded_thenStringIsNull() {
+        // GIVEN
+        val editor: SecurePreferences.Editor = mPrefs.edit()
+        editor.putString("key3", "value3")
+        assertTrue(editor.commit())
+        val savedValue: String? = mPrefs.getString("key3")
+        assertNotNull(savedValue)
+        if (savedValue != null) {
+            assertEquals("value3", savedValue)
+        }
+
+        // WHEN
+        editor.remove("key3")
+        assertTrue(editor.commit())
+        val retrieved: String? = mPrefs.getString("key3")
+
+        // THEN
+        assertNull(retrieved)
+    }
+
+    @Test
     fun givenStringNeverSaved_whenWhenStringLoaded_thenStringIsNull() {
         // GIVEN
 
