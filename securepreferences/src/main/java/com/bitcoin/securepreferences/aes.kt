@@ -269,7 +269,7 @@ fun deleteAesEncryptionKeyFromKeyStoreIfExists(namespace: String) {
     }
 }
 
-internal fun encryptUsingAesWithoutKeystore(plaintext: String, namespace: String): AesEncryptionResult {
+internal fun encryptUsingAesWithoutKeystore(plaintext: String): AesEncryptionResult {
     val params: AesEncryptionParams = AesEncryptionParams.forVersionWithoutKeyStore()
 
     val secretKey: SecretKey = createAesKeyWithoutKeystore(params)
