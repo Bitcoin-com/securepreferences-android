@@ -39,19 +39,22 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
 
 
     fun encryptString(value: String): String {
-
-        val ciphertext: String
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            ciphertext = encryptStringUsingKeystoreAes(value)
-        } else if (mDeviceIsSecure) {
-            ciphertext = encryptStringUsingAesThenKeystoreRsa(value)
-        } else {
-            // TODO: What is the right thing to do here?
-            ciphertext = encryptStringUsingAesThenKeystoreRsa(value)
+        return try {
+            when {
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> {
+                    encryptStringUsingKeystoreAes(value)
+                }
+                mDeviceIsSecure -> {
+                    encryptStringUsingAesThenKeystoreRsa(value)
+                }
+                else -> {
+                    // TODO: What is the right thing to do here?
+                    encryptStringUsingAesThenKeystoreRsa(value)
+                }
+            }
+        } catch (e: Exception) {
+            encryptionPassthroughOfString(value)
         }
-
-        return ciphertext
     }
 
     private fun encryptStringUsingAesThenKeystoreRsa(value: String): String {
@@ -84,7 +87,7 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
         return jsonToSave
     }
 
-    private fun encryptionPassthroughOfString(value: String): String {
+    fun encryptionPassthroughOfString(value: String): String {
         val container: JSONObject = JSONObject()
         container.put(JSON_VERSION, VERSION_UNENCRYPTED)
         container.put(JSON_VALUE, value)
