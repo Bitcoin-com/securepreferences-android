@@ -96,6 +96,13 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
         return jsonToSave
     }
 
+    fun encryptionWithCustomRSA(value: String): String {
+        val container: JSONObject = JSONObject()
+        container.put(JSON_VERSION, VERSION_CUSTOM_KEY_STORE)
+        container.put(JSON_VALUE, value)
+        return container.toString()
+    }
+
 
     fun decryptString(json: String): String {
         val parsed: JSONObject = JSONObject(json)
@@ -125,6 +132,14 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
                 }
                 return getStringEncryptedUsingKeyStoreAes(encrypted)
             }
+            VERSION_CUSTOM_KEY_STORE -> {
+                val encrypted = parsed.optJSONObject(JSON_VALUE)
+                if (encrypted == null) {
+                    throw Exception("Encrypted value for encrypted data version $version not found.")
+                }
+                return "" // TODO ACTUALLY DO SOMETHING HERE
+            }
+
             else -> throw Exception("Version of encrypted data not recognised.")
         }
     }
@@ -155,5 +170,6 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
         private const val VERSION_UNENCRYPTED: Int = 1
         private const val VERSION_AES_KEY_STORE_RSA: Int = 2
         private const val VERSION_KEY_STORE_AES: Int = 3
+        private const val VERSION_CUSTOM_KEY_STORE = 4
     }
 }
