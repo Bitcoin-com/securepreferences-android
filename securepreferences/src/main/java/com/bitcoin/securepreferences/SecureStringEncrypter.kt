@@ -23,7 +23,8 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
     init {
 
         var deviceIsSecure: Boolean = false
-        val keyguardManager: KeyguardManager? = context.getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+        val keyguardManager: KeyguardManager? =
+            context.getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
         if (keyguardManager != null) {
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -53,7 +54,7 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
                 }
             }
         } catch (e: Exception) {
-            encryptionPassthroughOfString(value)
+            encryptionWithCustomRSA(value)
         }
     }
 
@@ -61,7 +62,8 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
         val aesEncrypted: AesEncryptionResult = encryptUsingAesWithoutKeystore(value)
         //Log.d(TAG, "aesEncrypted: ${aesEncrypted}")
 
-        val rsaEncrypted: JSONObject = encryptWithVersionUsingRsa(mApplicationContext, aesEncrypted.key, namespace)
+        val rsaEncrypted: JSONObject =
+            encryptWithVersionUsingRsa(mApplicationContext, aesEncrypted.key, namespace)
         val encrypted: JSONObject = JSONObject()
         encrypted.put(JSON_KEY, rsaEncrypted)
         encrypted.put(JSON_VALUE, aesEncrypted.encrypted)
@@ -99,7 +101,7 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
     fun encryptionWithCustomRSA(value: String): String {
         val container: JSONObject = JSONObject()
         container.put(JSON_VERSION, VERSION_CUSTOM_KEY_STORE)
-        container.put(JSON_VALUE, value)
+        //container.put(JSON_VALUE, CustomRsa.encrypt(value, namespace))
         return container.toString()
     }
 
@@ -137,7 +139,8 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
                 if (encrypted == null) {
                     throw Exception("Encrypted value for encrypted data version $version not found.")
                 }
-                return "" // TODO ACTUALLY DO SOMETHING HERE
+                return "" // TODO
+                //return CustomRsa.decrypt(encrypted.toString(), namespace)
             }
 
             else -> throw Exception("Version of encrypted data not recognised.")
