@@ -51,6 +51,13 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
         return try {
             when (versionOverride) {
                 VERSION_UNENCRYPTED -> encryptionPassthroughOfString(value)
+                VERSION_KEY_STORE_AES -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        encryptStringUsingKeystoreAes(value)
+                    } else {
+                        throw Exception("SDK version ${Build.VERSION.SDK_INT} is not supported ")
+                    }
+                }
                 VERSION_AES_KEY_ENCRYPTED_PREFERENCE -> encryptStringUsingAesThenEncryptedPreference(
                     value
                 )
@@ -67,9 +74,8 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
 
     }
 
-    fun encryptString(value: String, plainTextFallback: Boolean = false): String {
-        return try {
-            when {
+    fun encryptString(value: String): String {
+        return when {
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> {
                     encryptStringUsingKeystoreAes(value)
                 }
@@ -81,13 +87,6 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
                     encryptStringUsingAesThenKeystoreRsa(value)
                 }
             }
-        } catch (e: Exception) {
-            if (plainTextFallback) {
-                encryptionPassthroughOfString(value)
-            } else {
-                throw e
-            }
-        }
     }
 
     private fun getEncryptedSharedPreference(): SharedPreferences {
@@ -243,9 +242,9 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
         private const val JSON_KEY: String = "key"
         private const val JSON_VALUE: String = "value"
         private const val JSON_VERSION: String = "v"
-        private const val VERSION_UNENCRYPTED: Int = 1
-        private const val VERSION_AES_KEY_STORE_RSA: Int = 2
-        private const val VERSION_KEY_STORE_AES: Int = 3
-        private const val VERSION_AES_KEY_ENCRYPTED_PREFERENCE = 4
+        const val VERSION_UNENCRYPTED: Int = 1
+        const val VERSION_AES_KEY_STORE_RSA: Int = 2
+        const val VERSION_KEY_STORE_AES: Int = 3
+        const val VERSION_AES_KEY_ENCRYPTED_PREFERENCE = 4
     }
 }
