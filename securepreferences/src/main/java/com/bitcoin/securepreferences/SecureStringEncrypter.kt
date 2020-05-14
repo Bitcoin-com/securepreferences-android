@@ -189,12 +189,11 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
                 return getStringEncryptedUsingKeyStoreAes(encrypted)
             }
             VERSION_AES_KEY_ENCRYPTED_PREFERENCE -> {
-                val encrypted = parsed.optJSONObject(JSON_VALUE)
+                val encrypted = parsed.optJSONObject(JSON_ENCRYPTED)
                 if (encrypted == null) {
                     throw Exception("Encrypted value for encrypted data version $version not found.")
                 }
-                return "" // TODO
-                //return CustomRsa.decrypt(encrypted.toString(), namespace)
+                return decryptStringEncryptedUsingAesEncryptedSharedPreference(encrypted)
             }
 
             else -> throw Exception("Version of encrypted data not recognised.")
