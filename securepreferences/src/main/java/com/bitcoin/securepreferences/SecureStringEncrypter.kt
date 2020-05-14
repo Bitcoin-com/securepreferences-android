@@ -62,7 +62,7 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
                     value
                 )
                 VERSION_AES_KEY_STORE_RSA -> encryptStringUsingAesThenKeystoreRsa(value)
-                else -> encryptString(value, plainTextFallback)
+                else -> encryptString(value)
             }
         } catch (e: Exception) {
             if (plainTextFallback) {
