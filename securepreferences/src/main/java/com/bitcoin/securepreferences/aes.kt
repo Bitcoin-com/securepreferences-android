@@ -2,20 +2,22 @@ package com.bitcoin.securepreferences
 
 
 import android.os.Build
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
+import android.security.keystore.StrongBoxUnavailableException
 import android.util.Base64
-
-import android.util.Log
+import androidx.annotation.RequiresApi
 import org.json.JSONObject
-import java.security.*
+import java.security.Key
+import java.security.KeyStore
+import java.security.KeyStoreException
+import java.security.SecureRandom
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
+import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
-import android.security.keystore.KeyProperties
-import android.security.keystore.KeyGenParameterSpec
-import android.security.keystore.StrongBoxUnavailableException
-import androidx.annotation.RequiresApi
 
 
 private const val JSON_CIPHERTEXT: String = "ct"
@@ -70,7 +72,7 @@ private data class AesEncryptionParams(
             }
 
         fun forVersion(version: Int): AesEncryptionParams {
-            when(version) {
+            when (version) {
                 VERSION_WITHOUT_KEY_STORE -> {
                     return forVersionWithoutKeyStore()
                 }
@@ -187,7 +189,6 @@ private fun createAesKeyInKeystore(params: AesEncryptionParams, keyAlias: String
 }
 
 
-
 internal fun decryptUsingAesWithoutKeyStore(key: ByteArray, json: JSONObject): String {
     val ivBase64: String? = json.optString(JSON_IV)
     val version: Int? = json.optInt(JSON_VERSION)
@@ -230,15 +231,20 @@ internal fun decryptUsingAesWithKeyStore(json: JSONObject, namespace: String): S
 
     val ivBase64: String? = encrypted.optString(JSON_IV)
     val ciphertextBase64: String? = encrypted.optString(JSON_CIPHERTEXT)
-    if (ivBase64 == null|| ciphertextBase64 == null) {
+    if (ivBase64 == null || ciphertextBase64 == null) {
         throw Exception("Encrypted value is missing components.")
     }
 
     val iv: ByteArray = Base64.decode(ivBase64, Base64.NO_WRAP)
     //Log.d(TAG, "IV: ${iv.toHexString()}")
-    val ivParamSpec: IvParameterSpec = IvParameterSpec(iv)
     val ciphertextBytes: ByteArray = Base64.decode(ciphertextBase64, Base64.NO_WRAP)
 
+    val keySize: Int = params.keySize
+    val spec = if (keySize != 0) {
+        GCMParameterSpec(keySize, iv)
+    } else {
+        IvParameterSpec(iv)
+    }
 
     // load key
     val keyAlias: String = keyAliasFromNamespace(namespace)
@@ -250,7 +256,7 @@ internal fun decryptUsingAesWithKeyStore(json: JSONObject, namespace: String): S
     }
 
     val cipher: Cipher = Cipher.getInstance(params.transformation)
-    cipher.init(Cipher.DECRYPT_MODE, key, ivParamSpec)
+    cipher.init(Cipher.DECRYPT_MODE, key, spec)
     val cleartextBytes: ByteArray = cipher.doFinal(ciphertextBytes)
     val cleartext: String = String(cleartextBytes)
     return cleartext
@@ -305,8 +311,6 @@ internal fun encryptUsingAesWithKeystore(plaintext: String, namespace: String): 
     cipher.init(Cipher.ENCRYPT_MODE, key)
     val iv: ByteArray = cipher.iv
     val ciphertext: ByteArray = cipher.doFinal(plaintext.toByteArray())
-
-
     val encrypted: JSONObject = JSONObject()
     encrypted.put(JSON_IV, Base64.encodeToString(iv, Base64.NO_WRAP))
     encrypted.put(JSON_CIPHERTEXT, Base64.encodeToString(ciphertext, Base64.NO_WRAP))
