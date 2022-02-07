@@ -37,9 +37,11 @@ class SecurePreferences(context: Context, private val namespace: String) {
         }
 
         fun putString(key: String, value: String): Editor {
-            val ciphertext: String = stringEncrypter.encryptString(value)
-            editor.putString(key, ciphertext)
-            return this
+            synchronized(this){
+                val ciphertext: String = stringEncrypter.encryptString(value)
+                editor.putString(key, ciphertext)
+                return this
+            }
         }
 
         fun remove(key: String) {
@@ -72,12 +74,15 @@ class SecurePreferences(context: Context, private val namespace: String) {
     }
 
     fun getString(key: String): String? {
-        val pref: String? = mSharedPreferences.getString(key, null)
-        if (pref != null) {
-            val plaintext: String = mStringEncrypter.decryptString(pref)
-            return plaintext
+        //to achieve this for all decrypt method
+        //https://github.com/FlowCrypt/flowcrypt-android/commit/6b553f9f3de5e77802e016096cfc63605e58c7fe
+        synchronized(this){
+            val pref: String? = mSharedPreferences.getString(key, null)
+            if (pref != null) {
+                val plaintext: String = mStringEncrypter.decryptString(pref)
+                return plaintext
+            }
+            return null
         }
-
-        return null
     }
 }
