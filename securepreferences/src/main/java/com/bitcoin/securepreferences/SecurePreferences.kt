@@ -17,7 +17,8 @@ class SecurePreferences(context: Context, private val namespace: String) {
     private val mApplicationContext: Context =
         context.applicationContext // Just to be sure, might already be an Application Context
     private val mDeviceIsSecure: Boolean
-    private val mSharedPreferences: SharedPreferences = context.getSharedPreferences(namespace, Context.MODE_PRIVATE)
+    private val mSharedPreferences: SharedPreferences =
+        context.getSharedPreferences(namespace, Context.MODE_PRIVATE)
     private val mStringEncrypter: SecureStringEncrypter = SecureStringEncrypter(context, namespace)
 
 
@@ -36,10 +37,12 @@ class SecurePreferences(context: Context, private val namespace: String) {
             deleteRsaEncryptionKeyFromKeyStoreIfExists(namespace)
         }
 
+        @Synchronized
         fun putString(key: String, value: String): Editor {
             val ciphertext: String = stringEncrypter.encryptString(value)
             editor.putString(key, ciphertext)
             return this
+
         }
 
         fun remove(key: String) {
@@ -53,7 +56,8 @@ class SecurePreferences(context: Context, private val namespace: String) {
 
     init {
         var deviceIsSecure: Boolean = false
-        val keyguardManager: KeyguardManager? = context.getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+        val keyguardManager: KeyguardManager? =
+            context.getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
         if (keyguardManager != null) {
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -68,16 +72,25 @@ class SecurePreferences(context: Context, private val namespace: String) {
     }
 
     fun edit(): Editor {
-        return Editor(mSharedPreferences.edit(), mApplicationContext, namespace, mDeviceIsSecure, mStringEncrypter)
+        return Editor(
+            mSharedPreferences.edit(),
+            mApplicationContext,
+            namespace,
+            mDeviceIsSecure,
+            mStringEncrypter
+        )
     }
 
+    //https://github.com/FlowCrypt/flowcrypt-android/commit/6b553f9f3de5e77802e016096cfc63605e58c7fe
+    @Synchronized
     fun getString(key: String): String? {
+        //to achieve this for all decrypt method
         val pref: String? = mSharedPreferences.getString(key, null)
         if (pref != null) {
             val plaintext: String = mStringEncrypter.decryptString(pref)
             return plaintext
         }
-
         return null
     }
+
 }
