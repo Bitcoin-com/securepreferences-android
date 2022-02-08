@@ -4,7 +4,7 @@ apply plugin: 'kotlin-android'
 apply plugin: 'com.github.dcendents.android-maven'
 
 group = 'com.github.Bitcoin-com'
-version = '1.1.0'
+version = '1.1.1'
 
 android {
     compileSdkVersion 28
@@ -14,8 +14,8 @@ android {
     defaultConfig {
         minSdkVersion 21
         targetSdkVersion 28
-        versionCode 10100
-        versionName "1.1.0"
+        versionCode 10101
+        versionName "1.1.1"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
