@@ -1,19 +1,15 @@
 apply plugin: 'com.android.library'
-apply plugin: 'kotlin-android-extensions'
 apply plugin: 'kotlin-android'
-apply plugin: 'com.github.dcendents.android-maven'
 
 group = 'com.github.Bitcoin-com'
 version = '1.2.3'
 
 android {
-    compileSdkVersion 28
-
-
+    compileSdkVersion 31
 
     defaultConfig {
+        targetSdkVersion 31
         minSdkVersion 21
-        targetSdkVersion 28
         versionCode 10203
         versionName "1.2.3"
 
@@ -27,26 +23,31 @@ android {
         }
     }
 
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
 }
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
 
     // For @RequiresApi
-    implementation 'androidx.appcompat:appcompat:1.1.0-alpha03'
-    testImplementation 'junit:junit:4.12'
+    implementation 'androidx.appcompat:appcompat:1.4.1'
+    testImplementation 'junit:junit:4.13.2'
     // Robolectric environment
-    testImplementation 'androidx.test:core:1.1.0'
-    androidTestImplementation 'androidx.test:core:1.1.0'
-    androidTestImplementation 'androidx.test.ext:junit:1.1.0'
-    implementation 'com.madgag.spongycastle:core:1.51.0.0'
-    testCompile group: 'org.hamcrest', name: 'hamcrest', version: '2.2'
+    testImplementation 'androidx.test:core:1.4.0'
+    androidTestImplementation 'androidx.test:core:1.4.0'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.3'
+    implementation 'com.madgag.spongycastle:core:1.58.0.0'
+//    testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.2'
 
 
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
-    implementation "androidx.security:security-crypto:1.0.0-rc01"
+    implementation "androidx.security:security-crypto:1.1.0-alpha03"
 
-    androidTestImplementation 'androidx.test.espresso:espresso-core:3.1.1'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.4.0'
 }
 repositories {
     mavenCentral()
