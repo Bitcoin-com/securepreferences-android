@@ -43,6 +43,7 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
         Log.d(TAG, "Device is secure: ${mDeviceIsSecure}")
     }
 
+    @Synchronized
     fun encryptString(
         value: String,
         plainTextFallback: Boolean = false,
@@ -74,6 +75,7 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
 
     }
 
+    @Synchronized
     fun encryptString(value: String): String {
         return when {
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> {
@@ -159,6 +161,7 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
         return jsonToSave
     }
 
+    @Synchronized
     fun decryptString(json: String): String {
         val parsed: JSONObject = JSONObject(json)
         val version: Int? = parsed.optInt(JSON_VERSION)
