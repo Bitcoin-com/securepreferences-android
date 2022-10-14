@@ -2,16 +2,16 @@ apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
 
 group = 'com.github.Bitcoin-com'
-version = '1.2.3'
+version = '1.2.4'
 
 android {
-    compileSdkVersion 31
+    compileSdkVersion 32
 
     defaultConfig {
-        targetSdkVersion 31
+        targetSdkVersion 32
         minSdkVersion 23
-        versionCode 10203
-        versionName "1.2.3"
+        versionCode 10204
+        versionName "1.2.4"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -34,7 +34,7 @@ dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
 
     // For @RequiresApi
-    implementation 'androidx.appcompat:appcompat:1.4.1'
+    implementation 'androidx.appcompat:appcompat:1.5.1'
     testImplementation 'junit:junit:4.13.2'
     // Robolectric environment
     testImplementation 'androidx.test:core:1.4.0'
