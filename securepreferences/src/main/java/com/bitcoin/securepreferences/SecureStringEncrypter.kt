@@ -69,9 +69,9 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
         return encryptStringUsingKeystoreAes(value)
     }
 
-    private fun getEncryptedSharedPreference(): SharedPreferences {
+    val encryptedSharedPreference: SharedPreferences by lazy {
         val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
-        return EncryptedSharedPreferences.create(
+        EncryptedSharedPreferences.create(
             "private_pref",
             masterKeyAlias,
             mApplicationContext,
@@ -85,7 +85,7 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
         val encrypted = JSONObject()
 
 
-        val sharedPreferences = getEncryptedSharedPreference()
+        val sharedPreferences = encryptedSharedPreference
         val keyRef = UUID.randomUUID().toString()
         sharedPreferences.edit().putString(keyRef, Base64.toBase64String(aesEncrypted.key)).commit()
         encrypted.put(JSON_KEY, keyRef)
@@ -133,6 +133,11 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
         return container.toString()
     }
 
+    fun getEncryptionType(json: String): Int {
+        val parsed = JSONObject(json)
+        return parsed.optInt(JSON_VERSION)
+    }
+
     @Synchronized
     fun decryptString(json: String): String {
         val parsed = JSONObject(json)
@@ -167,7 +172,7 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
         if (aesEncrypted == null) {
             throw Exception("Fetching JSON failed: keyRef: $keyRef EncryptedValue: $aesEncrypted")
         }
-        val sharedPreferences = getEncryptedSharedPreference()
+        val sharedPreferences = encryptedSharedPreference
         val base64Key = sharedPreferences.getString(keyRef, null)
 
         if (base64Key == null) {

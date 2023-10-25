@@ -60,11 +60,7 @@ class SecurePreferences(context: Context, private val namespace: String) {
             context.getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
         if (keyguardManager != null) {
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                deviceIsSecure = keyguardManager.isDeviceSecure
-            } else {
-                deviceIsSecure = keyguardManager.isKeyguardSecure
-            }
+            deviceIsSecure = keyguardManager.isDeviceSecure
         }
 
         mDeviceIsSecure = deviceIsSecure
