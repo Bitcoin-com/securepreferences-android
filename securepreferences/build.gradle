@@ -2,7 +2,7 @@ apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
 
 group = 'com.github.Bitcoin-com'
-version = '1.2.4'
+version = '1.2.6'
 
 android {
     compileSdkVersion 32
@@ -10,8 +10,8 @@ android {
     defaultConfig {
         targetSdkVersion 32
         minSdkVersion 23
-        versionCode 10204
-        versionName "1.2.4"
+        versionCode 10206
+        versionName "1.2.6"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }

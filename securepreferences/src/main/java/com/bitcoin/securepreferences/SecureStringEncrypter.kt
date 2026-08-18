@@ -3,12 +3,16 @@ package com.bitcoin.securepreferences
 import android.app.KeyguardManager
 import android.content.Context
 import android.content.SharedPreferences
+import android.security.keystore.KeyPermanentlyInvalidatedException
 import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKeys
 import org.json.JSONObject
 import org.spongycastle.util.encoders.Base64
+import java.security.KeyStore
+import java.security.UnrecoverableKeyException
 import java.util.*
+import javax.crypto.BadPaddingException
 
 
 // https://doridori.github.io/android-security-the-forgetful-keystore/#sthash.UZTvjDTP.ncWnyt7V.dpbs
@@ -69,15 +73,90 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
         return encryptStringUsingKeystoreAes(value)
     }
 
-    val encryptedSharedPreference: SharedPreferences by lazy {
+    val encryptedSharedPreference: SharedPreferences by lazy { openEncryptedSharedPreference() }
+
+    /**
+     * True once the encrypted preference store has been reset because its KeyStore key was lost.
+     * Everything written with [VERSION_AES_KEY_ENCRYPTED_PREFERENCE] before that is unreadable, so
+     * callers should re-derive it from a backup and then call [acknowledgeEncryptedPreferenceReset].
+     */
+    fun wasEncryptedPreferenceReset(): Boolean =
+        stateSharedPreference.getBoolean(KEY_WAS_RESET, false)
+
+    fun acknowledgeEncryptedPreferenceReset() {
+        stateSharedPreference.edit().remove(KEY_WAS_RESET).commit()
+    }
+
+    /**
+     * Opens the encrypted preference store, recovering when the KeyStore key that wraps its Tink
+     * keyset no longer matches it — the state a device restore or a key invalidation leaves behind.
+     * Both keysets and every data key live in [ENCRYPTED_PREFERENCE_FILE], so a mismatch makes all
+     * of it unreadable for good and the only way forward is to discard it and start again.
+     */
+    private fun openEncryptedSharedPreference(): SharedPreferences =
+        synchronized(encryptedPreferenceLock) {
+            try {
+                return createEncryptedSharedPreference()
+            } catch (e: Exception) {
+                if (!e.isUnrecoverableKeyStoreFailure()) throw e
+                Log.w(TAG, "Encrypted preference keyset cannot be unwrapped, discarding it", e)
+            }
+
+            clearEncryptedPreferenceFile()
+            try {
+                return createEncryptedSharedPreference().also { recordReset() }
+            } catch (e: Exception) {
+                if (!e.isUnrecoverableKeyStoreFailure()) throw e
+                Log.w(TAG, "Encrypted preference keyset still unusable, replacing master key", e)
+            }
+
+            // The master key itself is unusable, not just the keyset it wrapped.
+            deleteAndroidxMasterKey()
+            clearEncryptedPreferenceFile()
+            return try {
+                createEncryptedSharedPreference().also { recordReset() }
+            } catch (e: Exception) {
+                throw EncryptedPreferenceUnavailableException(
+                    "Unable to open the encrypted preference store.", e
+                )
+            }
+        }
+
+    private fun createEncryptedSharedPreference(): SharedPreferences {
         val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
-        EncryptedSharedPreferences.create(
-            "private_pref",
+        return EncryptedSharedPreferences.create(
+            ENCRYPTED_PREFERENCE_FILE,
             masterKeyAlias,
             mApplicationContext,
             EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
             EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
         )
+    }
+
+    private fun clearEncryptedPreferenceFile() {
+        mApplicationContext
+            .getSharedPreferences(ENCRYPTED_PREFERENCE_FILE, Context.MODE_PRIVATE)
+            .edit()
+            .clear()
+            .commit()
+    }
+
+    private fun deleteAndroidxMasterKey() {
+        try {
+            val keyStore: KeyStore = KeyStore.getInstance(PROVIDER_ANDROID_KEY_STORE)
+            keyStore.load(null, null)
+            keyStore.deleteEntry(ANDROIDX_MASTER_KEY_ALIAS)
+        } catch (e: Exception) {
+            // Nothing more we can do; the create retry that follows reports the real failure.
+            Log.w(TAG, "Unable to delete the androidx master key", e)
+        }
+    }
+
+    private val stateSharedPreference: SharedPreferences
+        get() = mApplicationContext.getSharedPreferences(STATE_PREFERENCE_FILE, Context.MODE_PRIVATE)
+
+    private fun recordReset() {
+        stateSharedPreference.edit().putBoolean(KEY_WAS_RESET, true).commit()
     }
 
     private fun encryptStringUsingAesThenEncryptedPreference(value: String): String {
@@ -176,7 +255,10 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
         val base64Key = sharedPreferences.getString(keyRef, null)
 
         if (base64Key == null) {
-            throw Exception("Unable  to find key: $base64Key")
+            // Reached whenever the store has been reset out from under existing ciphertext.
+            throw UnrecoverableCiphertextException(
+                "Data key $keyRef is no longer in the encrypted preference store."
+            )
         }
 
         val aesKey = Base64.decode(base64Key)
@@ -209,5 +291,39 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
         const val VERSION_AES_KEY_STORE_RSA: Int = 2
         const val VERSION_KEY_STORE_AES: Int = 3
         const val VERSION_AES_KEY_ENCRYPTED_PREFERENCE = 4
+
+        private const val ENCRYPTED_PREFERENCE_FILE: String = "private_pref"
+        private const val STATE_PREFERENCE_FILE: String = "securepreferences_state"
+        private const val KEY_WAS_RESET: String = "encrypted_preference_was_reset"
+        private const val PROVIDER_ANDROID_KEY_STORE: String = "AndroidKeyStore"
+
+        // androidx.security.crypto.MasterKeys.MASTER_KEY_ALIAS is package private.
+        private const val ANDROIDX_MASTER_KEY_ALIAS: String = "_androidx_security_master_key_"
+
+        // Every instance shares one preference file, so recovery has to be process wide.
+        private val encryptedPreferenceLock = Any()
     }
+}
+
+private const val MAX_CAUSE_DEPTH: Int = 20
+
+/**
+ * True when the KeyStore key that wrapped the keyset is gone or no longer matches it. Transient
+ * KeyStore errors — a locked device, an unavailable keystore daemon — must not match, or recovery
+ * would discard data that is still readable.
+ */
+internal fun Throwable.isUnrecoverableKeyStoreFailure(): Boolean {
+    var cause: Throwable? = this
+    var depth = 0
+    while (cause != null && depth++ < MAX_CAUSE_DEPTH) {
+        // AEADBadTagException extends BadPaddingException; either means the blob failed to decrypt.
+        if (cause is BadPaddingException ||
+            cause is UnrecoverableKeyException ||
+            cause is KeyPermanentlyInvalidatedException
+        ) {
+            return true
+        }
+        cause = cause.cause
+    }
+    return false
 }
