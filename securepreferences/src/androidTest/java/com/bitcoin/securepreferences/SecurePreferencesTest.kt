@@ -2,6 +2,7 @@ package com.bitcoin.securepreferences
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Base64
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.test.core.app.ApplicationProvider
@@ -12,6 +13,7 @@ import org.junit.Test
 
 import org.junit.Assert.*
 import org.junit.runner.RunWith
+import org.json.JSONObject
 
 
 // This crashes - maybe because there is no app for the context?
@@ -105,5 +107,76 @@ class SecurePreferencesTest {
         assertNotNull(retrieved)
         assertEquals(retrieved, "value2")
 
+    }
+
+    @Test
+    fun defaultEncryptionUsesVersion5AndRoundTrips() {
+        val encrypter = SecureStringEncrypter(
+            ApplicationProvider.getApplicationContext(),
+            "version5-round-trip"
+        )
+
+        val ciphertext = encrypter.encryptString("secret")
+
+        assertEquals(SecureStringEncrypter.VERSION_KEY_STORE_AES_GCM, encrypter.getEncryptionType(ciphertext))
+        assertEquals("secret", encrypter.decryptString(ciphertext))
+    }
+
+    @Test
+    fun missingVersion5KeyThrowsTypedKeyLoss() {
+        val namespace = "version5-missing-key"
+        val encrypter = SecureStringEncrypter(ApplicationProvider.getApplicationContext(), namespace)
+        val ciphertext = encrypter.encryptString("secret")
+        deleteAesGcmEncryptionKeyFromKeyStoreIfExists(namespace)
+
+        try {
+            encrypter.decryptString(ciphertext)
+            fail("Expected LocalEncryptionKeyLostException")
+        } catch (_: LocalEncryptionKeyLostException) {
+            // Expected: callers can route this failure into credential recovery.
+        }
+    }
+
+    @Test
+    fun modifiedVersion5CiphertextThrowsTypedKeyLoss() {
+        val encrypter = SecureStringEncrypter(
+            ApplicationProvider.getApplicationContext(),
+            "version5-modified-ciphertext"
+        )
+        val container = JSONObject(encrypter.encryptString("secret"))
+        val encrypted = container.getJSONObject("encrypted")
+        val bytes = Base64.decode(encrypted.getString("ct"), Base64.NO_WRAP)
+        bytes[0] = (bytes[0].toInt() xor 1).toByte()
+        encrypted.put("ct", Base64.encodeToString(bytes, Base64.NO_WRAP))
+
+        try {
+            encrypter.decryptString(container.toString())
+            fail("Expected LocalEncryptionKeyLostException")
+        } catch (_: LocalEncryptionKeyLostException) {
+            // Expected: AES-GCM authenticates the ciphertext before returning plaintext.
+        }
+    }
+
+    @Test
+    fun missingLegacyVersion4DataKeyThrowsTypedKeyLoss() {
+        val encrypter = SecureStringEncrypter(
+            ApplicationProvider.getApplicationContext(),
+            "version4-missing-data-key"
+        )
+        val ciphertext = encrypter.encryptString(
+            "secret",
+            versionOverride = SecureStringEncrypter.VERSION_AES_KEY_ENCRYPTED_PREFERENCE
+        )
+        val keyReference = JSONObject(ciphertext)
+            .getJSONObject("encrypted")
+            .getString("key")
+        encrypter.encryptedSharedPreference.edit().remove(keyReference).commit()
+
+        try {
+            encrypter.decryptString(ciphertext)
+            fail("Expected LocalEncryptionKeyLostException")
+        } catch (_: LocalEncryptionKeyLostException) {
+            // Expected: version 4 remains readable, but lost data keys get the typed recovery signal.
+        }
     }
 }

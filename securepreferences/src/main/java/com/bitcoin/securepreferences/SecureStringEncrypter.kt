@@ -55,6 +55,7 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
                 VERSION_AES_KEY_ENCRYPTED_PREFERENCE -> encryptStringUsingAesThenEncryptedPreference(
                     value
                 )
+                VERSION_KEY_STORE_AES_GCM -> encryptStringUsingKeystoreAesGcm(value)
                 VERSION_AES_KEY_STORE_RSA -> encryptStringUsingAesThenKeystoreRsa(value)
                 else -> encryptString(value)
             }
@@ -70,7 +71,7 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
 
     @Synchronized
     fun encryptString(value: String): String {
-        return encryptStringUsingKeystoreAes(value)
+        return encryptStringUsingKeystoreAesGcm(value)
     }
 
     val encryptedSharedPreference: SharedPreferences by lazy { openEncryptedSharedPreference() }
@@ -193,6 +194,13 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
         return container.toString()
     }
 
+    private fun encryptStringUsingKeystoreAesGcm(value: String): String {
+        return JSONObject()
+            .put(JSON_VERSION, VERSION_KEY_STORE_AES_GCM)
+            .put(JSON_ENCRYPTED, encryptUsingAesGcmWithKeyStore(value, namespace))
+            .toString()
+    }
+
     private fun encryptStringUsingKeystoreAes(value: String): String {
         val encrypted: JSONObject = encryptUsingAesWithKeystore(value, namespace)
         //Log.d(TAG, "aesEncrypted: ${encrypted}")
@@ -240,6 +248,13 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
                     ?: throw Exception("Encrypted value for encrypted data version $version not found.")
                 return decryptStringEncryptedUsingAesEncryptedSharedPreference(encrypted)
             }
+            VERSION_KEY_STORE_AES_GCM -> {
+                val encrypted = parsed.optJSONObject(JSON_ENCRYPTED)
+                    ?: throw UnrecoverableCiphertextException(
+                        "Encrypted value for encrypted data version $version not found."
+                    )
+                return decryptUsingAesGcmWithKeyStore(encrypted, namespace)
+            }
 
             else -> throw Exception("Version of encrypted data not recognised.")
         }
@@ -256,7 +271,7 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
 
         if (base64Key == null) {
             // Reached whenever the store has been reset out from under existing ciphertext.
-            throw UnrecoverableCiphertextException(
+            throw LocalEncryptionKeyLostException(
                 "Data key $keyRef is no longer in the encrypted preference store."
             )
         }
@@ -291,6 +306,7 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
         const val VERSION_AES_KEY_STORE_RSA: Int = 2
         const val VERSION_KEY_STORE_AES: Int = 3
         const val VERSION_AES_KEY_ENCRYPTED_PREFERENCE = 4
+        const val VERSION_KEY_STORE_AES_GCM: Int = 5
 
         private const val ENCRYPTED_PREFERENCE_FILE: String = "private_pref"
         private const val STATE_PREFERENCE_FILE: String = "securepreferences_state"

@@ -5,7 +5,8 @@ group = 'com.github.Bitcoin-com'
 version = '1.2.6'
 
 android {
-    compileSdkVersion 32
+    namespace 'com.bitcoin.securepreferences'
+    compileSdkVersion 34
 
     defaultConfig {
         targetSdkVersion 32
@@ -45,7 +46,7 @@ dependencies {
 
 
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
-    implementation "androidx.security:security-crypto:1.0.0"
+    implementation "androidx.security:security-crypto:1.1.0"
 
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.4.0'
 }
