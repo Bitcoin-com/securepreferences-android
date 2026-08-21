@@ -2,7 +2,6 @@ package com.bitcoin.securepreferences
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.util.Base64
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.test.core.app.ApplicationProvider
@@ -110,51 +109,16 @@ class SecurePreferencesTest {
     }
 
     @Test
-    fun defaultEncryptionUsesVersion5AndRoundTrips() {
+    fun defaultEncryptionRemainsVersion3AndRoundTrips() {
         val encrypter = SecureStringEncrypter(
             ApplicationProvider.getApplicationContext(),
-            "version5-round-trip"
+            "version3-round-trip"
         )
 
         val ciphertext = encrypter.encryptString("secret")
 
-        assertEquals(SecureStringEncrypter.VERSION_KEY_STORE_AES_GCM, encrypter.getEncryptionType(ciphertext))
+        assertEquals(SecureStringEncrypter.VERSION_KEY_STORE_AES, encrypter.getEncryptionType(ciphertext))
         assertEquals("secret", encrypter.decryptString(ciphertext))
-    }
-
-    @Test
-    fun missingVersion5KeyThrowsTypedKeyLoss() {
-        val namespace = "version5-missing-key"
-        val encrypter = SecureStringEncrypter(ApplicationProvider.getApplicationContext(), namespace)
-        val ciphertext = encrypter.encryptString("secret")
-        deleteAesGcmEncryptionKeyFromKeyStoreIfExists(namespace)
-
-        try {
-            encrypter.decryptString(ciphertext)
-            fail("Expected LocalEncryptionKeyLostException")
-        } catch (_: LocalEncryptionKeyLostException) {
-            // Expected: callers can route this failure into credential recovery.
-        }
-    }
-
-    @Test
-    fun modifiedVersion5CiphertextThrowsTypedKeyLoss() {
-        val encrypter = SecureStringEncrypter(
-            ApplicationProvider.getApplicationContext(),
-            "version5-modified-ciphertext"
-        )
-        val container = JSONObject(encrypter.encryptString("secret"))
-        val encrypted = container.getJSONObject("encrypted")
-        val bytes = Base64.decode(encrypted.getString("ct"), Base64.NO_WRAP)
-        bytes[0] = (bytes[0].toInt() xor 1).toByte()
-        encrypted.put("ct", Base64.encodeToString(bytes, Base64.NO_WRAP))
-
-        try {
-            encrypter.decryptString(container.toString())
-            fail("Expected LocalEncryptionKeyLostException")
-        } catch (_: LocalEncryptionKeyLostException) {
-            // Expected: AES-GCM authenticates the ciphertext before returning plaintext.
-        }
     }
 
     @Test

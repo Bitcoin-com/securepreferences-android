@@ -55,7 +55,6 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
                 VERSION_AES_KEY_ENCRYPTED_PREFERENCE -> encryptStringUsingAesThenEncryptedPreference(
                     value
                 )
-                VERSION_KEY_STORE_AES_GCM -> encryptStringUsingKeystoreAesGcm(value)
                 VERSION_AES_KEY_STORE_RSA -> encryptStringUsingAesThenKeystoreRsa(value)
                 else -> encryptString(value)
             }
@@ -71,22 +70,10 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
 
     @Synchronized
     fun encryptString(value: String): String {
-        return encryptStringUsingKeystoreAesGcm(value)
+        return encryptStringUsingKeystoreAes(value)
     }
 
     val encryptedSharedPreference: SharedPreferences by lazy { openEncryptedSharedPreference() }
-
-    /**
-     * True once the encrypted preference store has been reset because its KeyStore key was lost.
-     * Everything written with [VERSION_AES_KEY_ENCRYPTED_PREFERENCE] before that is unreadable, so
-     * callers should re-derive it from a backup and then call [acknowledgeEncryptedPreferenceReset].
-     */
-    fun wasEncryptedPreferenceReset(): Boolean =
-        stateSharedPreference.getBoolean(KEY_WAS_RESET, false)
-
-    fun acknowledgeEncryptedPreferenceReset() {
-        stateSharedPreference.edit().remove(KEY_WAS_RESET).commit()
-    }
 
     /**
      * Opens the encrypted preference store, recovering when the KeyStore key that wraps its Tink
@@ -105,7 +92,7 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
 
             clearEncryptedPreferenceFile()
             try {
-                return createEncryptedSharedPreference().also { recordReset() }
+                return createEncryptedSharedPreference()
             } catch (e: Exception) {
                 if (!e.isUnrecoverableKeyStoreFailure()) throw e
                 Log.w(TAG, "Encrypted preference keyset still unusable, replacing master key", e)
@@ -115,7 +102,7 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
             deleteAndroidxMasterKey()
             clearEncryptedPreferenceFile()
             return try {
-                createEncryptedSharedPreference().also { recordReset() }
+                createEncryptedSharedPreference()
             } catch (e: Exception) {
                 throw EncryptedPreferenceUnavailableException(
                     "Unable to open the encrypted preference store.", e
@@ -153,13 +140,6 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
         }
     }
 
-    private val stateSharedPreference: SharedPreferences
-        get() = mApplicationContext.getSharedPreferences(STATE_PREFERENCE_FILE, Context.MODE_PRIVATE)
-
-    private fun recordReset() {
-        stateSharedPreference.edit().putBoolean(KEY_WAS_RESET, true).commit()
-    }
-
     private fun encryptStringUsingAesThenEncryptedPreference(value: String): String {
         val aesEncrypted: AesEncryptionResult = encryptUsingAesWithoutKeystore(value)
         val encrypted = JSONObject()
@@ -192,13 +172,6 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
         container.put(JSON_ENCRYPTED, encrypted)
 
         return container.toString()
-    }
-
-    private fun encryptStringUsingKeystoreAesGcm(value: String): String {
-        return JSONObject()
-            .put(JSON_VERSION, VERSION_KEY_STORE_AES_GCM)
-            .put(JSON_ENCRYPTED, encryptUsingAesGcmWithKeyStore(value, namespace))
-            .toString()
     }
 
     private fun encryptStringUsingKeystoreAes(value: String): String {
@@ -248,14 +221,6 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
                     ?: throw Exception("Encrypted value for encrypted data version $version not found.")
                 return decryptStringEncryptedUsingAesEncryptedSharedPreference(encrypted)
             }
-            VERSION_KEY_STORE_AES_GCM -> {
-                val encrypted = parsed.optJSONObject(JSON_ENCRYPTED)
-                    ?: throw UnrecoverableCiphertextException(
-                        "Encrypted value for encrypted data version $version not found."
-                    )
-                return decryptUsingAesGcmWithKeyStore(encrypted, namespace)
-            }
-
             else -> throw Exception("Version of encrypted data not recognised.")
         }
     }
@@ -306,11 +271,8 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
         const val VERSION_AES_KEY_STORE_RSA: Int = 2
         const val VERSION_KEY_STORE_AES: Int = 3
         const val VERSION_AES_KEY_ENCRYPTED_PREFERENCE = 4
-        const val VERSION_KEY_STORE_AES_GCM: Int = 5
 
         private const val ENCRYPTED_PREFERENCE_FILE: String = "private_pref"
-        private const val STATE_PREFERENCE_FILE: String = "securepreferences_state"
-        private const val KEY_WAS_RESET: String = "encrypted_preference_was_reset"
         private const val PROVIDER_ANDROID_KEY_STORE: String = "AndroidKeyStore"
 
         // androidx.security.crypto.MasterKeys.MASTER_KEY_ALIAS is package private.

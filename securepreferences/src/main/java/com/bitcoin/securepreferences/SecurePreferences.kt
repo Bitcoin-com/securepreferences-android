@@ -34,7 +34,6 @@ class SecurePreferences(context: Context, private val namespace: String) {
         fun clear() {
             editor.clear()
             deleteAesEncryptionKeyFromKeyStoreIfExists(namespace)
-            deleteAesGcmEncryptionKeyFromKeyStoreIfExists(namespace)
             deleteRsaEncryptionKeyFromKeyStoreIfExists(namespace)
         }
 

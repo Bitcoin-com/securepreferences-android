@@ -11,8 +11,8 @@ open class UnrecoverableCiphertextException(
 
 /**
  * Ciphertext that cannot be decrypted because its device-local AndroidKeyStore key is gone,
- * invalidated, or no longer authenticates it. The host app should start its credential recovery
- * flow instead of retrying the same operation.
+ * invalidated, or no longer authenticates it. The host app should invoke its existing recovery
+ * mechanism instead of retrying the same operation.
  */
 class LocalEncryptionKeyLostException(
     message: String,
