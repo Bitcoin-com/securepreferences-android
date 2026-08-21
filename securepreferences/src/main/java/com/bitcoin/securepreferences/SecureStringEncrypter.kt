@@ -87,7 +87,7 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
                 return createEncryptedSharedPreference()
             } catch (e: Exception) {
                 if (!e.isUnrecoverableKeyStoreFailure()) throw e
-                Log.w(TAG, "Encrypted preference keyset cannot be unwrapped, discarding it", e)
+                Log.e(TAG, "Encrypted preference keyset cannot be unwrapped, discarding it", e)
             }
 
             clearEncryptedPreferenceFile()
@@ -95,7 +95,7 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
                 return createEncryptedSharedPreference()
             } catch (e: Exception) {
                 if (!e.isUnrecoverableKeyStoreFailure()) throw e
-                Log.w(TAG, "Encrypted preference keyset still unusable, replacing master key", e)
+                Log.e(TAG, "Encrypted preference keyset still unusable, replacing master key", e)
             }
 
             // The master key itself is unusable, not just the keyset it wrapped.
@@ -136,7 +136,7 @@ class SecureStringEncrypter(context: Context, private val namespace: String) {
             keyStore.deleteEntry(ANDROIDX_MASTER_KEY_ALIAS)
         } catch (e: Exception) {
             // Nothing more we can do; the create retry that follows reports the real failure.
-            Log.w(TAG, "Unable to delete the androidx master key", e)
+            Log.e(TAG, "Unable to delete the androidx master key", e)
         }
     }
 
