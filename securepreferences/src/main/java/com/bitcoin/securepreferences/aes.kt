@@ -246,7 +246,7 @@ internal fun decryptUsingAesWithKeyStore(json: JSONObject, namespace: String): S
     keyStore.load(null, null)
     var key: Key? = keyStore.getKey(keyAlias, null)
     if (key == null) {
-        throw Exception("Key missing when decrypting.")
+        throw LocalEncryptionKeyLostException("Key missing when decrypting.")
     }
 
     val cipher: Cipher = Cipher.getInstance(params.transformation)
