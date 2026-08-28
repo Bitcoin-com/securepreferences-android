@@ -1,31 +1,28 @@
 apply plugin: 'com.android.library'
-apply plugin: 'kotlin-android'
 
 group = 'com.github.Bitcoin-com'
-version = '1.2.4'
+version = '1.2.6'
 
 android {
-    compileSdkVersion 32
+    namespace = 'com.bitcoin.securepreferences'
+    compileSdk = 34
 
     defaultConfig {
-        targetSdkVersion 32
-        minSdkVersion 23
-        versionCode 10204
-        versionName "1.2.4"
+        minSdk = 23
 
-        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         release {
-            minifyEnabled false
+            minifyEnabled = false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
 }
@@ -44,8 +41,7 @@ dependencies {
 //    testImplementation group: 'org.hamcrest', name: 'hamcrest', version: '2.2'
 
 
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
-    implementation "androidx.security:security-crypto:1.0.0"
+    implementation "androidx.security:security-crypto:1.1.0"
 
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.4.0'
 }

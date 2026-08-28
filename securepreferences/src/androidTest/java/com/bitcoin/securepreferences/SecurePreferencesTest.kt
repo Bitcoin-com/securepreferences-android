@@ -12,6 +12,7 @@ import org.junit.Test
 
 import org.junit.Assert.*
 import org.junit.runner.RunWith
+import org.json.JSONObject
 
 
 // This crashes - maybe because there is no app for the context?
@@ -105,5 +106,41 @@ class SecurePreferencesTest {
         assertNotNull(retrieved)
         assertEquals(retrieved, "value2")
 
+    }
+
+    @Test
+    fun defaultEncryptionRemainsVersion3AndRoundTrips() {
+        val encrypter = SecureStringEncrypter(
+            ApplicationProvider.getApplicationContext(),
+            "version3-round-trip"
+        )
+
+        val ciphertext = encrypter.encryptString("secret")
+
+        assertEquals(SecureStringEncrypter.VERSION_KEY_STORE_AES, encrypter.getEncryptionType(ciphertext))
+        assertEquals("secret", encrypter.decryptString(ciphertext))
+    }
+
+    @Test
+    fun missingLegacyVersion4DataKeyThrowsTypedKeyLoss() {
+        val encrypter = SecureStringEncrypter(
+            ApplicationProvider.getApplicationContext(),
+            "version4-missing-data-key"
+        )
+        val ciphertext = encrypter.encryptString(
+            "secret",
+            versionOverride = SecureStringEncrypter.VERSION_AES_KEY_ENCRYPTED_PREFERENCE
+        )
+        val keyReference = JSONObject(ciphertext)
+            .getJSONObject("encrypted")
+            .getString("key")
+        encrypter.encryptedSharedPreference.edit().remove(keyReference).commit()
+
+        try {
+            encrypter.decryptString(ciphertext)
+            fail("Expected LocalEncryptionKeyLostException")
+        } catch (_: LocalEncryptionKeyLostException) {
+            // Expected: version 4 remains readable, but lost data keys get the typed recovery signal.
+        }
     }
 }

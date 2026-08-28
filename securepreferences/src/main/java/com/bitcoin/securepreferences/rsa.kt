@@ -194,7 +194,7 @@ private fun decryptUsingRsa(ciphertextBase64: String, namespace: String, transfo
     keyStore.load(null, null)
     var key: Key? = keyStore.getKey(keyAlias, null)
     if (key == null) {
-        throw Exception("RSA key missing.")
+        throw LocalEncryptionKeyLostException("RSA key missing.")
     }
 
     val ciphertextBytes: ByteArray = Base64.decode(ciphertextBase64, Base64.NO_WRAP)
