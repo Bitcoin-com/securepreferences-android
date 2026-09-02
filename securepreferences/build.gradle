@@ -1,7 +1,16 @@
 apply plugin: 'com.android.library'
+apply plugin: 'maven-publish'
 
-group = 'com.github.Bitcoin-com'
-version = '1.2.6'
+def publicationGroup = gradle.startParameter.projectProperties['group']
+def publicationVersion = gradle.startParameter.projectProperties['version']
+
+if (!publicationGroup || publicationGroup == 'unspecified' ||
+        !publicationVersion || publicationVersion == 'unspecified') {
+    throw new GradleException('Publishing requires -Pgroup and -Pversion.')
+}
+
+group = publicationGroup
+version = publicationVersion
 
 android {
     namespace = 'com.bitcoin.securepreferences'
@@ -25,6 +34,20 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    publishing {
+        singleVariant('release')
+    }
+}
+
+afterEvaluate {
+    publishing {
+        publications {
+            release(MavenPublication) {
+                from components.release
+                artifactId = rootProject.name
+            }
+        }
+    }
 }
 
 dependencies {
